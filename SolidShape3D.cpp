@@ -3,14 +3,13 @@
 SolidShape3D::SolidShape3D() {
 	center.setXYZ(0, 0, 0);
 	velocity.setXYZ(0, 0, 0);
-
-	setMTL();
+	
 }
 
 SolidShape3D::SolidShape3D(const SolidShape3D& sh3d) {
 	setCenter(sh3d.center);
 	setVelocity(sh3d.velocity);
-	
+	set_map(sh3d.get_map());
 	mtl.setMTL(sh3d.mtl);
 }
 
@@ -46,10 +45,10 @@ void SolidShape3D::move() {
 	center = center + velocity;
 }
 
-void SolidShape3D::setMTL() {
-	mtl.setEmission(0.1, 0.1, 0.1, 1);
-	mtl.setAmbient(0.3, 0.3, 0.3, 1);
-	mtl.setDiffuse(0.5, 0.5, 0.5, 1);
-	mtl.setSpecular(1.0, 1.0, 1.0, 1);
-	mtl.setShininess(10);
+
+void SolidShape3D::set_map(int index) {
+	this->index_ = index; 
+}
+int SolidShape3D::get_map() const { 
+	return index_; 
 }

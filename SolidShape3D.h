@@ -15,13 +15,14 @@ public:
 	void setVelocity(float x, float y, float z);
 	void setVelocity(const Vector3& v);
 	Vector3 getVelocity() const;
+	void set_map(int index);
+	int get_map() const;
 	void move();
-	void setMTL();
 	virtual void draw() const = 0;
-
+	
 protected:
 	Vector3 center;
 	Vector3 velocity;
 	Material mtl;
+	int index_;
 };
-
