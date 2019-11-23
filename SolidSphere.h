@@ -14,8 +14,11 @@ public:
 	void collisionHandling();
 	void draw() const;
 	void setMTL(int color);
-
+	int get_color() const { return color; }
+	void set_color(int color) { this->color = color; }
+	bool to_be_deleted = false;
 private:
 	Vector3 properties;
+	int color;
 };
 

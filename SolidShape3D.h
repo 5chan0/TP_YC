@@ -24,5 +24,5 @@ protected:
 	Vector3 center;
 	Vector3 velocity;
 	Material mtl;
-	int index_;
+	int map_index;
 };

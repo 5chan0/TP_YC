@@ -11,6 +11,140 @@ extern vector<SolidSphere> spheres;
 extern SolidSphere* flying;
 extern bool cease_fire;
 
+vector<int> stack;
+
+void translate(int index) {
+	int temp = 0;
+	int line;
+	int th;
+	if (index > 19) temp = index / 19;
+	if (index % 19 <= 9) {
+		line = temp * 2;
+		th = index % 19;
+	}
+	else {
+		line = temp * 2 + 1;
+		th = (index % 19) - 10;
+	}
+	cout << "line : " << line << " & th : " << th << endl;
+}
+
+void remove(int current, int color, bool first) {
+	// remove : 같은 색깔이면 stack에 넣고 recursion을 돌린다.
+	// first가 필요한가? yes
+	if (first == true) {
+		remove(current, color, false);
+		if (stack.size() >= 3) {
+			for (int i = 0; i < stack.size(); i++) {
+				spheres[map[stack[i]].holding_sphere_index].to_be_deleted = true;
+				cout << endl << "will erase ";
+				translate(stack[i]);
+				map[stack[i]].set_assign(false);
+				map[stack[i]].set_color(-1);
+			}
+			for (vector<SolidSphere>::iterator it = spheres.begin(); it != spheres.end();) {
+				if ((*it).to_be_deleted == true) {
+					cout << "erasing ";
+					translate((*it).get_map());
+					it = spheres.erase(it);
+				}
+				else it++;
+			}
+		}
+		while (stack.size() > 0) stack.pop_back();
+		for (int i = 0; i < map.size(); i++) map[i].set_search(false);
+		return;
+
+
+
+
+	}
+	else {
+		if (map[current].get_assign() == false || map[current].get_search() == true) return; // assign이 안되어있거나 이미 서치했으면 아무것도 안하고
+		else { // 아닌 경우 주변부로 서치를 확장한다
+			cout << "searching : ";
+			translate(current);
+			map[current].set_search(true);
+			if (color == map[current].get_color()) {
+				stack.push_back(current);
+				if (map[current].get_line() == 0) { // 첫번째 줄인 경우
+					if (map[current].get_end() == -1) { // 가장 왼쪽인 경우
+						remove(current + 1, color, false);
+						remove(current + 10, color, false);
+					}
+					else if (map[current].get_end() == 1) { // 가장 오른쪽인 경우
+						remove(current - 1, color, false);
+						remove(current + 9, color, false);
+					}
+					else {
+						remove(current - 1, color, false);
+						remove(current + 1, color, false);
+						remove(current + 9, color, false);
+						remove(current + 10, color, false);
+					}
+				}
+				else if (map[current].get_line() == 11) { // 마지막 줄인 경우
+					if (map[current].get_end() == -1) { // 가장 왼쪽인 경우
+						remove(current + 1, color, false);
+						remove(current - 10, color, false);
+						remove(current - 9, color, false);
+					}
+					else if (map[current].get_end() == 1) { // 가장 오른쪽인 경우
+						remove(current - 1, color, false);
+						remove(current - 9, color, false);
+						remove(current - 10, color, false);
+					}
+					else {
+						remove(current - 1, color, false);
+						remove(current + 1, color, false);
+						remove(current - 9, color, false);
+						remove(current - 10, color, false);
+					}
+				}
+				else { // line 1~10
+					if (map[current].get_end() == 0) { // 가장 일반적인 경우
+						remove(current - 1, color, false);
+						remove(current + 1, color, false);
+						remove(current - 9, color, false);
+						remove(current - 10, color, false);
+						remove(current + 9, color, false);
+						remove(current + 10, color, false);
+					}
+					else if (map[current].get_end() == -1) { // 왼쪽 끝자락일때
+						if (map[current].get_line() % 2 == 0) { // 홀수번째줄
+							remove(current + 1, color, false);
+							remove(current - 9, color, false);
+							remove(current + 10, color, false);
+						}
+						else { // 짝수번째줄
+							remove(current + 1, color, false);
+							remove(current - 9, color, false);
+							remove(current - 10, color, false);
+							remove(current + 9, color, false);
+							remove(current + 10, color, false);
+						}
+					}
+					else { // 오른쪽 끝자락일 때
+						if (map[current].get_line() % 2 == 0) { // 홀수번째줄
+							remove(current - 1, color, false);
+							remove(current - 10, color, false);
+							remove(current + 9, color, false);
+						}
+						else { // 짝수번째줄
+							remove(current - 1, color, false);
+							remove(current - 9, color, false);
+							remove(current - 10, color, false);
+							remove(current + 9, color, false);
+							remove(current + 10, color, false);
+						}
+					}
+				}
+
+			}
+			else return;
+		}
+	}
+}
 float length_(Vector3 input1, Vector3 input2) {
 	return sqrt(dotProduct(input1 - input2, input1 - input2));
 }
@@ -18,10 +152,13 @@ float length_(Vector3 input1, Vector3 input2) {
 SolidSphere::SolidSphere(float r, int sl, int st, int color) : SolidShape3D() {
 	properties.setXYZ(r, sl, st);
 	setMTL(color);
+	set_color(color);
 }
 
 SolidSphere::SolidSphere(const SolidSphere& sph) : SolidShape3D(sph) {
 	properties = sph.properties;
+	color = sph.get_color();
+	to_be_deleted = sph.to_be_deleted;
 }
 
 Vector3 SolidSphere::getProperties() const{
@@ -68,8 +205,12 @@ void SolidSphere::collisionHandling(SolidSphere& sph) {
 		spheres.back().setCenter(map[position_JM].getXYZ());
 		spheres.back().set_map(position_JM);
 		map[position_JM].set_assign(true);
+		map[position_JM].holding_sphere_index = spheres.size() - 1;
+		map[position_JM].set_color(this->get_color());
 		flying = nullptr;
 		cease_fire = false;
+		remove(position_JM,this->get_color(),true);
+		return;
 	}
 }
 void SolidSphere::collisionHandling() { // TOP_END에 이른 경우 이 함수를 call한다.
@@ -87,11 +228,14 @@ void SolidSphere::collisionHandling() { // TOP_END에 이른 경우 이 함수를 call한�
 
 	//cout << this->get_assigned_map() << endl;
 	map[temp].set_assign(true);
-	spheres.push_back(*flying);
+	map[temp].holding_sphere_index = spheres.size(); // pushback 하기전이므로
+	map[temp].set_color(this->get_color());
+	spheres.push_back(*this);
 	spheres.back().setCenter(map[temp].getXYZ());
 	spheres.back().set_map(temp);
 	flying = nullptr;
 	cease_fire = false;
+	remove(temp, this->get_color(), true);
 	return;
 }
 
@@ -118,14 +262,14 @@ void SolidSphere::setMTL(int color) {
 		mtl.setSpecular(0.296648, 0.296648, 0.296648, 0.922);
 		mtl.setShininess(11.264);
 	}
-	if (color == 1) { // GOLD
+	else if (color == 1) { // GOLD
 		mtl.setEmission(0.1, 0.1, 0.1, 1);
 		mtl.setAmbient(0.24725, 0.1995, 0.0745, 1.0);
 		mtl.setDiffuse(0.75164, 0.60648, 0.22648, 1);
 		mtl.setSpecular(0.628281, 0.555802, 0.366065, 1);
 		mtl.setShininess(51.2);
 	}
-	if (color == 2) { // RUBY
+	else if (color == 2) { // RUBY
 		mtl.setEmission(0.1, 0.1, 0.1, 1);
 		mtl.setAmbient(0.1745, 0.01175, 0.01175, 0.55);
 		mtl.setDiffuse(0.61424, 0.04136, 0.04136, 0.55);

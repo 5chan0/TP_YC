@@ -47,8 +47,8 @@ void SolidShape3D::move() {
 
 
 void SolidShape3D::set_map(int index) {
-	this->index_ = index; 
+	this->map_index = index; 
 }
 int SolidShape3D::get_map() const { 
-	return index_; 
+	return map_index; 
 }
