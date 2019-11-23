@@ -28,7 +28,7 @@ float angle = 0.0;
 
 clock_t start_clock = clock();
 clock_t end_clock;
-const float fps = 1000 / 120.0;
+const float fps = 1000 / 240.0; // framerate Á¶Á¤
 
 /****************************SPECS(PX)
 sphere radius : 25
@@ -37,6 +37,7 @@ ready-to-fire sphere center : 250, 686
 TOP-END : 117-127
 BOTTOM-END : 643-653
 **********************************/
+
 
 void assign_map() {
 	float root3 = sqrt(3);
@@ -51,14 +52,18 @@ void assign_map() {
 			for (int i = 0; i < 10; i++) {
 				Map temp(odd_x[i],y[j]);
 				temp.set_line(j);
-				temp.index = map.size();
+				temp.my_index = map.size();
+				if (i == 0) temp.set_end(-1);
+				else if (i == 9) temp.set_end(1);
 				map.push_back(temp);
 			}
 		else 
 			for (int i = 0; i < 9; i++) {
 				Map temp(even_x[i], y[j]);
 				temp.set_line(j);
-				temp.index = map.size();
+				temp.my_index = map.size();
+				if (i == 0) temp.set_end(-1);
+				else if (i == 8) temp.set_end(1);
 				map.push_back(temp);
 			}
 	}
@@ -79,7 +84,7 @@ void draw_characters_yellow(void* font, const char* c, float x, float y) {
 	glRasterPos2f(x, y);
 	for (int i = 0; i < strlen(c); i++)
 		glutBitmapCharacter(font, c[i]);
-}void shift_to_fire() {	next_sphere->setCenter(0, -342, 0);	ready_sphere = next_sphere;	assign_sphere();}void fire() {	cease_fire = true;	flying = ready_sphere;	flying->setVelocity(10.0 * cos((90 + angle) * pi / 180.0), 10.0 * sin((90 + angle) * pi / 180.0), 0);	shift_to_fire();}void processNormalKeys(unsigned char key, int x, int y) {
+}void shift_to_fire() {	next_sphere->setCenter(0, -342, 0);	ready_sphere = next_sphere;	assign_sphere();}void fire() {	cease_fire = true;	flying = ready_sphere;	flying->setVelocity(10.0 * cos((90 + angle) * pi / 180.0), 10.0 * sin((90 + angle) * pi / 180.0), 0);	shift_to_fire();	cout << endl;}void processNormalKeys(unsigned char key, int x, int y) {
 	if (key == 32 && cease_fire == false) { // SPACEBAR
 		fire();
 	}
