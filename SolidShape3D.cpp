@@ -28,7 +28,7 @@ Vector3 SolidShape3D::getCenter() const {
 }
 
 void SolidShape3D::setVelocity(float x, float y, float z) {
-	velocity[0] = x;
+ 	velocity[0] = x;
 	velocity[1] = y;
 	velocity[2] = z;
 }
