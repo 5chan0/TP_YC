@@ -16,19 +16,19 @@ using namespace std;
 #define BOTTOM_END -273
 #define pi 3.14159
 
-vector<SolidSphere> spheres;
 Light* light;
 vector<Map> map;
 SolidSphere* next_sphere = nullptr;
 SolidSphere* ready_sphere = nullptr;
 SolidSphere* flying = nullptr;
 bool cease_fire = false;
+bool game_over = false;
 float angle = 0.0;
 
 
 clock_t start_clock = clock();
 clock_t end_clock;
-const float fps = 1000 / 240.0; // framerate 조정
+const float fps = 1000 / 480.0; // framerate 조정
 
 /****************************SPECS(PX)
 sphere radius : 25
@@ -52,7 +52,7 @@ void assign_map() {
 			for (int i = 0; i < 10; i++) {
 				Map temp(odd_x[i],y[j]);
 				temp.set_line(j);
-				temp.my_index = map.size();
+				temp.set_my_index(map.size());
 				if (i == 0) temp.set_end(-1);
 				else if (i == 9) temp.set_end(1);
 				map.push_back(temp);
@@ -61,7 +61,7 @@ void assign_map() {
 			for (int i = 0; i < 9; i++) {
 				Map temp(even_x[i], y[j]);
 				temp.set_line(j);
-				temp.my_index = map.size();
+				temp.set_my_index(map.size());
 				if (i == 0) temp.set_end(-1);
 				else if (i == 8) temp.set_end(1);
 				map.push_back(temp);
@@ -70,11 +70,17 @@ void assign_map() {
 }
 void assign_sphere() {
 	int color = rand() % 4;
-	next_sphere = new SolidSphere(25, 100, 100, color);
+	next_sphere = new SolidSphere(25, 100, 50, color);
 	next_sphere->setCenter(-200, -342, 0);
 }
 void draw_characters(void* font, const char* c, float x, float y) {
 	glColor3f(1.0, 1.0, 1.0);
+	glRasterPos2f(x, y);
+	for (int i = 0; i < strlen(c); i++)
+		glutBitmapCharacter(font, c[i]);
+}
+void draw_characters_red(void* font, const char* c, float x, float y) {
+	glColor3f(1.0, 0.0, 0.0);
 	glRasterPos2f(x, y);
 	for (int i = 0; i < strlen(c); i++)
 		glutBitmapCharacter(font, c[i]);
@@ -84,7 +90,11 @@ void draw_characters_yellow(void* font, const char* c, float x, float y) {
 	glRasterPos2f(x, y);
 	for (int i = 0; i < strlen(c); i++)
 		glutBitmapCharacter(font, c[i]);
-}void shift_to_fire() {	next_sphere->setCenter(0, -342, 0);	ready_sphere = next_sphere;	assign_sphere();}void fire() {	cease_fire = true;	flying = ready_sphere;	flying->setVelocity(10.0 * cos((90 + angle) * pi / 180.0), 10.0 * sin((90 + angle) * pi / 180.0), 0);	shift_to_fire();	cout << endl;}void processNormalKeys(unsigned char key, int x, int y) {
+}void shift_to_fire() {	next_sphere->setCenter(0, -342, 0);	ready_sphere = next_sphere;	assign_sphere();}void fire() {	cease_fire = true;	flying = ready_sphere;	flying->setVelocity(10.0 * cos((90 + angle) * pi / 180.0), 10.0 * sin((90 + angle) * pi / 180.0), 0);	shift_to_fire();	for (int i = 0; i < map.size(); i++) {		if (map[i].get_connected() == false) {
+			delete map[i].holding_sphere;
+			map[i].holding_sphere = nullptr;
+			map[i].set_assign(false);
+			map[i].set_color(-1);		}		map[i].set_connected(-1);	}}void processNormalKeys(unsigned char key, int x, int y) {
 	if (key == 32 && cease_fire == false) { // SPACEBAR
 		fire();
 	}
@@ -104,9 +114,9 @@ void draw_characters_yellow(void* font, const char* c, float x, float y) {
 }
 void init() {
 	light = new Light(boundaryX, boundaryY, boundaryX / 2, GL_LIGHT0);
-	light->setAmbient(0.5, 0.5, 0.5, 1.0);
-	light->setDiffuse(0.7, 0.7, 0.7, 1.0);
-	light->setSpecular(1.0, 1.0, 1.0, 1.0);
+	light->setAmbient(0.5f, 0.5f, 0.5f, 1.0f);
+	light->setDiffuse(0.7f, 0.7f, 0.7f, 1.0f);
+	light->setSpecular(1.0f, 1.0f, 1.0f, 1.0f);
 
 	assign_map(); // map을 초기화하고
 	assign_sphere(); // 첫번째 sphere를 넣어준다.
@@ -118,7 +128,7 @@ void idle() { // idlefunc는 animation을 위해 사용한다.
 	if (end_clock - start_clock > fps) { //FPS 제한부분 주석처리
 		// collision handling
 		if (flying != nullptr) {
-			for (int i = 0; i < spheres.size(); i++) if (flying != nullptr) flying->collisionHandling(spheres[i]); // 다른 sphere 들에 부딪히는지 확인
+			for (int i = 0; i < map.size(); i++) if (flying != nullptr && map[i].get_assign() == true) flying->collisionHandling(map[i].holding_sphere); // 다른 sphere 들에 부딪히는지 확인
 			if (flying != nullptr) {
 				if ((flying->getCenter())[0] + (flying->getProperties())[0] >= boundaryX || (flying->getCenter())[0] - (flying->getProperties())[0] <= -boundaryX) {
 					Vector3 temp = flying->getVelocity();
@@ -129,6 +139,7 @@ void idle() { // idlefunc는 animation을 위해 사용한다.
 					flying->collisionHandling();
 				}
 				if (flying != nullptr) flying->move();
+				for (int i = 0; i < map.size(); i++) if (map[i].get_connected() == false) map[i].holding_sphere->move();
 			}
 		}
 		start_clock = end_clock;
@@ -150,7 +161,7 @@ void renderScene() {
 
 	glClearColor(0, 0, 0, 0);
 	glClear(GL_COLOR_BUFFER_BIT);
-	draw_characters(GLUT_BITMAP_HELVETICA_18, "SCORE", -224, 337);	draw_characters(GLUT_BITMAP_HELVETICA_18, "TIME", 0, 337);	draw_characters(GLUT_BITMAP_HELVETICA_18, "NEXT", -224, -305);	draw_characters_yellow(GLUT_BITMAP_HELVETICA_12, "points", -135, 303);
+	draw_characters(GLUT_BITMAP_HELVETICA_18, "SCORE", -224, 337);	draw_characters(GLUT_BITMAP_HELVETICA_18, "TIME", 0, 337);	draw_characters(GLUT_BITMAP_HELVETICA_18, "NEXT", -224, -305);	draw_characters_yellow(GLUT_BITMAP_HELVETICA_12, "points", -135, 303);	if (game_over == true) draw_characters_red(GLUT_BITMAP_TIMES_ROMAN_24, "GAME OVER", -50, 0);
 	glLineWidth(10.0);
 	glBegin(GL_LINES);
 	glColor3f(1,1,1);
@@ -165,7 +176,7 @@ void renderScene() {
 	glEnable(GL_LIGHT0);
 	light->draw();
 
-	for (auto sph : spheres) sph.draw();
+	for (int i = 0; i < map.size(); i++) if (map[i].get_assign() == true) map[i].holding_sphere->draw();
 	if(flying != nullptr) flying->draw();
 	if(ready_sphere != nullptr) ready_sphere->draw();
 	if(next_sphere != nullptr) next_sphere->draw();

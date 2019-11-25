@@ -7,26 +7,97 @@ using namespace std;
 
 
 extern vector<Map> map;
-extern vector<SolidSphere> spheres;
 extern SolidSphere* flying;
 extern bool cease_fire;
-
+extern bool game_over;
 vector<int> stack;
 
-void translate(int index) {
-	int temp = 0;
-	int line;
-	int th;
-	if (index > 19) temp = index / 19;
-	if (index % 19 <= 9) {
-		line = temp * 2;
-		th = index % 19;
-	}
+
+void drop(int current) {
+	cout << "분기 1" << endl;
+	if (map[current].get_connected() == 1) return;
+
+	cout << "분기 2" << endl;
+	if (map[current].get_assign() == true) map[current].set_connected(1);
 	else {
-		line = temp * 2 + 1;
-		th = (index % 19) - 10;
+		map[current].set_connected(0);
+		return;
 	}
-	cout << "line : " << line << " & th : " << th << endl;
+	cout << "분기 3" << endl;
+
+	if (map[current].get_line() == 0) { // 첫번째 줄인 경우
+		if (map[current].get_end() == -1) { // 가장 왼쪽인 경우
+			drop(current + 1);
+			drop(current + 10);
+		}
+		else if (map[current].get_end() == 1) { // 가장 오른쪽인 경우
+			drop(current - 1);
+			drop(current + 9);
+		}
+		else {
+			drop(current - 1);
+			drop(current + 1);
+			drop(current + 9);
+			drop(current + 10);
+		}
+	}
+	else if (map[current].get_line() == 11) { // 마지막 줄인 경우
+		if (map[current].get_end() == -1) { // 가장 왼쪽인 경우
+			drop(current + 1);
+			drop(current - 10);
+			drop(current - 9);
+		}
+		else if (map[current].get_end() == 1) { // 가장 오른쪽인 경우
+			drop(current - 1);
+			drop(current - 9);
+			drop(current - 10);
+		}
+		else {
+			drop(current - 1);
+			drop(current + 1);
+			drop(current - 9);
+			drop(current - 10);
+		}
+	}
+	else { // line 1~10
+		if (map[current].get_end() == 0) { // 가장 일반적인 경우
+			drop(current - 1);
+			drop(current + 1);
+			drop(current - 9);
+			drop(current - 10);
+			drop(current + 9);
+			drop(current + 10);
+		}
+		else if (map[current].get_end() == -1) { // 왼쪽 끝자락일때
+			if (map[current].get_line() % 2 == 0) { // 홀수번째줄
+				drop(current + 1);
+				drop(current - 9);
+				drop(current + 10);
+			}
+			else { // 짝수번째줄
+				drop(current + 1);
+				drop(current - 9);
+				drop(current - 10);
+				drop(current + 9);
+				drop(current + 10);
+			}
+		}
+		else { // 오른쪽 끝자락일 때
+			if (map[current].get_line() % 2 == 0) { // 홀수번째줄
+				drop(current - 1);
+				drop(current - 10);
+				drop(current + 9);
+			}
+			else { // 짝수번째줄
+				drop(current - 1);
+				drop(current - 9);
+				drop(current - 10);
+				drop(current + 9);
+				drop(current + 10);
+			}
+		}
+	}
+	return;
 }
 
 void remove(int current, int color, bool first) {
@@ -36,34 +107,20 @@ void remove(int current, int color, bool first) {
 		remove(current, color, false);
 		if (stack.size() >= 3) {
 			for (int i = 0; i < stack.size(); i++) {
-				spheres[map[stack[i]].holding_sphere_index].to_be_deleted = true;
-				cout << endl << "will erase ";
-				translate(stack[i]);
+				delete map[stack[i]].holding_sphere;
+				map[stack[i]].holding_sphere = nullptr;
 				map[stack[i]].set_assign(false);
 				map[stack[i]].set_color(-1);
 			}
-			for (vector<SolidSphere>::iterator it = spheres.begin(); it != spheres.end();) {
-				if ((*it).to_be_deleted == true) {
-					cout << "erasing ";
-					translate((*it).get_map());
-					it = spheres.erase(it);
-				}
-				else it++;
-			}
+			
 		}
 		while (stack.size() > 0) stack.pop_back();
 		for (int i = 0; i < map.size(); i++) map[i].set_search(false);
 		return;
-
-
-
-
 	}
 	else {
 		if (map[current].get_assign() == false || map[current].get_search() == true) return; // assign이 안되어있거나 이미 서치했으면 아무것도 안하고
 		else { // 아닌 경우 주변부로 서치를 확장한다
-			cout << "searching : ";
-			translate(current);
 			map[current].set_search(true);
 			if (color == map[current].get_color()) {
 				stack.push_back(current);
@@ -158,26 +215,25 @@ SolidSphere::SolidSphere(float r, int sl, int st, int color) : SolidShape3D() {
 SolidSphere::SolidSphere(const SolidSphere& sph) : SolidShape3D(sph) {
 	properties = sph.properties;
 	color = sph.get_color();
-	to_be_deleted = sph.to_be_deleted;
 }
 
 Vector3 SolidSphere::getProperties() const{
 	return properties;
 }
 
-bool SolidSphere::collisionDetection(const SolidSphere& sph) {
+bool SolidSphere::collisionDetection(const SolidSphere* sph) {
 	/* Implementation: collision detection */
 	Vector3 c1 = getCenter();
-	Vector3 c2 = sph.getCenter();
-	return (sqrt(dotProduct(c1 - c2, c1 - c2)) < properties[0] + sph.getProperties()[0]);
+	Vector3 c2 = (*sph).getCenter();
+	return (sqrt(dotProduct(c1 - c2, c1 - c2)) < properties[0] + (*sph).getProperties()[0]);
 }
 
-void SolidSphere::collisionHandling(SolidSphere& sph) {
+void SolidSphere::collisionHandling(SolidSphere* sph) {
 	if (collisionDetection(sph)) {
 		this->setVelocity(0, 0, 0);
 		int position = 0;
 		Vector3 this_c = getCenter(); // 날아가던 공이 멈춘 위치를 잡고
-		Vector3 that_c = sph.getCenter();
+		Vector3 that_c = (*sph).getCenter();
 		float x_grad = this_c[0] - that_c[0];
 		float y_grad = this_c[1] - that_c[1];
 
@@ -199,18 +255,22 @@ void SolidSphere::collisionHandling(SolidSphere& sph) {
 			cout << "ERROR" << endl;
 			exit(123);
 		}
-
-		int position_JM = position + sph.get_map(); // 찐막 포지션
-		spheres.push_back(*this);
-		spheres.back().setCenter(map[position_JM].getXYZ());
-		spheres.back().set_map(position_JM);
-		map[position_JM].set_assign(true);
-		map[position_JM].holding_sphere_index = spheres.size() - 1;
-		map[position_JM].set_color(this->get_color());
-		flying = nullptr;
-		cease_fire = false;
-		remove(position_JM,this->get_color(),true);
-		return;
+		int position_JM = position + (*sph).get_map(); // 찐막 포지션
+		if (position_JM >= 114) game_over = true;
+		else {
+			map[position_JM].set_assign(true);
+			map[position_JM].holding_sphere = this;
+			this->set_map(position_JM);
+			this->setCenter(map[position_JM].getXYZ());
+			this->set_map(position_JM);
+			map[position_JM].set_color(this->get_color());
+			flying = nullptr;
+			cease_fire = false;
+			remove(position_JM, this->get_color(), true);
+			for (int i = 0; i < 10; i++) drop(i);
+			for (int i = 0; i < map.size(); i++) if (map[i].get_connected() == 0) map[i].holding_sphere->setVelocity(0, -100, 0);
+			return;
+		}
 	}
 }
 void SolidSphere::collisionHandling() { // TOP_END에 이른 경우 이 함수를 call한다.
@@ -228,14 +288,17 @@ void SolidSphere::collisionHandling() { // TOP_END에 이른 경우 이 함수를 call한�
 
 	//cout << this->get_assigned_map() << endl;
 	map[temp].set_assign(true);
-	map[temp].holding_sphere_index = spheres.size(); // pushback 하기전이므로
+	map[temp].holding_sphere = this;
+	this->set_map(temp);
+	this->setCenter(map[temp].getXYZ());
+	this->set_map(temp);
 	map[temp].set_color(this->get_color());
-	spheres.push_back(*this);
-	spheres.back().setCenter(map[temp].getXYZ());
-	spheres.back().set_map(temp);
 	flying = nullptr;
 	cease_fire = false;
 	remove(temp, this->get_color(), true);
+	for (int i = 0; i < 10; i++) drop(i);
+	cout << false;
+	for (int i = 0; i < map.size(); i++) if (map[i].get_connected() == 0) map[i].holding_sphere->setVelocity(0, -100, 0);
 	return;
 }
 
